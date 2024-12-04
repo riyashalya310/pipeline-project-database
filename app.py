@@ -57,5 +57,35 @@ def get_sample_file(filename):
     else:
         return jsonify({"error": "File not found"}), 404
 
+
+# New route to delete a file
+@app.route('/api/sample-files/<filename>', methods=['DELETE'])
+def delete_sample_file(filename):
+    try:
+        # Delete file record from database
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM sample_files WHERE file_name = %s;", (filename,))
+        
+        if cur.rowcount == 0:
+            cur.close()
+            conn.close()
+            return jsonify({"error": "File not found in database"}), 404
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        # Delete the file from the file system
+        file_path = os.path.join(SAMPLE_FILES_DIR, filename)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return jsonify({"message": "File deleted successfully"}), 200
+        else:
+            return jsonify({"message": "Database entry deleted, but file not found on server"}), 200
+    except Exception as e:
+        print(f"Error: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
 if __name__ == '__main__':
     app.run(debug=True)
